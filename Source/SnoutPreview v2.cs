@@ -16,7 +16,6 @@ using System.Collections;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows.Navigation;
-using JR.Utils.GUI.Forms;
 using System.Globalization;
 using System.Diagnostics;
 using System.Drawing;
