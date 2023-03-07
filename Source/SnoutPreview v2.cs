@@ -9,10 +9,14 @@ using VMS.TPS.Common.Model.API;
 using VMS.TPS.Common.Model.Types;
 using System.Windows.Controls;
 using System.Windows.Media.Media3D;
+using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Data;
 using System.Collections;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.Windows.Navigation;
+//using System.Reflection.Emit;
 
 [assembly: AssemblyVersion("1.0.0.1")]
 
@@ -25,8 +29,6 @@ namespace VMS.TPS
     //Snout
     public class Snout
     {
-        //
-        const bool IsValidated = false;
 
         const double snout_pos_min = 0;
         const double snout_pos_max = 421;
@@ -307,12 +309,12 @@ namespace VMS.TPS
         private ComboBox field;
         private PerspectiveCamera camera;
         private Model3DGroup model3D;
-        private Label snout_position;
-        private Label view_angle;
+        private System.Windows.Controls.Label snout_position;
+        private System.Windows.Controls.Label view_angle;
         private TextBox txt_x;
         private TextBox txt_y;
         private Slider sl_snout_position;
-        private Label air_gap;
+        private System.Windows.Controls.Label air_gap;
         private Button btn_calculate;
         private Snout snout;
 
@@ -336,26 +338,26 @@ namespace VMS.TPS
 
             Grid top_left_grid = new Grid();
 
-            Label lbl_patient = new Label();
+            System.Windows.Controls.Label lbl_patient = new System.Windows.Controls.Label();
             lbl_patient.Content = "Patient:";
             top_left_grid.Children.Add(lbl_patient);
 
-            Label lbl_plan = new Label();
+            System.Windows.Controls.Label lbl_plan = new System.Windows.Controls.Label();
             lbl_plan.Content = "Plan:";
             lbl_plan.Margin = new Thickness(0, 15, 0, 0);
             top_left_grid.Children.Add(lbl_plan);
 
-            Label patient = new Label();
+            System.Windows.Controls.Label patient = new System.Windows.Controls.Label();
             patient.Name = "patient";
             patient.Margin = new Thickness(50, 0, 0, 0);
             top_left_grid.Children.Add(patient);
 
-            Label plan = new Label();
+            System.Windows.Controls.Label plan = new System.Windows.Controls.Label();
             plan.Name = "plan";
             plan.Margin = new Thickness(50, 15, 0, 0);
             top_left_grid.Children.Add(plan);
 
-            Label lbl_field = new Label();
+            System.Windows.Controls.Label lbl_field = new System.Windows.Controls.Label();
             lbl_field.Content = "Select field:";
             lbl_field.Margin = new Thickness(0, 40, 0, 0);
             top_left_grid.Children.Add(lbl_field);
@@ -384,17 +386,17 @@ namespace VMS.TPS
 
             Grid top_right_grid = new Grid();
 
-            Label lbl_airgap = new Label();
+            System.Windows.Controls.Label lbl_airgap = new System.Windows.Controls.Label();
             lbl_airgap.Content = "Measure air gap at resolution:";
             lbl_airgap.Margin = new Thickness(0, 15, 0, 0);
             top_right_grid.Children.Add(lbl_airgap);
 
-            Label lbl_x = new Label();
+            System.Windows.Controls.Label lbl_x = new System.Windows.Controls.Label();
             lbl_x.Content = "x[mm]:";
             lbl_x.Margin = new Thickness(165, 0, 0, 0);
             top_right_grid.Children.Add(lbl_x);
 
-            Label lbl_y = new Label();
+            System.Windows.Controls.Label lbl_y = new System.Windows.Controls.Label();
             lbl_y.Content = "y[mm]:";
             lbl_y.Margin = new Thickness(210, 0, 0, 0);
             top_right_grid.Children.Add(lbl_y);
@@ -431,7 +433,7 @@ namespace VMS.TPS
             txt_y.Text = "10";
             top_right_grid.Children.Add(txt_y);
 
-            air_gap = new Label();
+            air_gap = new System.Windows.Controls.Label();
             air_gap.Content = "Calculated air gap =";
             air_gap.Margin = new Thickness(100, 40, 0, 0);
             top_right_grid.Children.Add(air_gap);
@@ -439,12 +441,12 @@ namespace VMS.TPS
             top_right.Child = top_right_grid;
 
             //Canvas controls
-            Label lbl_view_angle = new Label();
+            System.Windows.Controls.Label lbl_view_angle = new System.Windows.Controls.Label();
             lbl_view_angle.Content = "View angle[deg]: ";
             lbl_view_angle.Margin = new Thickness(5, 80, 0, 0);
             main_grid.Children.Add(lbl_view_angle);
 
-            view_angle = new Label();
+            view_angle = new System.Windows.Controls.Label();
             view_angle.Margin = new Thickness(95, 80, 0, 0);
             view_angle.Content = 0;
             main_grid.Children.Add(view_angle);
@@ -459,12 +461,12 @@ namespace VMS.TPS
             sl_view_angle.ValueChanged += sl_view_angle_ValueChanged;
             main_grid.Children.Add(sl_view_angle);
 
-            Label lbl_snout_position = new Label();
+            System.Windows.Controls.Label lbl_snout_position = new System.Windows.Controls.Label();
             lbl_snout_position.Content = "Snout position[cm]: ";
             lbl_snout_position.Margin = new Thickness(5, 100, 0, 0);
             main_grid.Children.Add(lbl_snout_position);
 
-            snout_position = new Label();
+            snout_position = new System.Windows.Controls.Label();
             snout_position.Name = "snout_position_value";
             snout_position.Margin = new Thickness(110, 100, 0, 0);
             main_grid.Children.Add(snout_position);
@@ -485,6 +487,8 @@ namespace VMS.TPS
             canvas.Background = Brushes.LightSkyBlue;
             canvas.MouseWheel += Canvas_MouseWheel;
             main_grid.Children.Add(canvas);
+            
+            
 
             Button btn_help = new Button();
             btn_help.Width = 20;
@@ -495,14 +499,40 @@ namespace VMS.TPS
             canvas.Children.Add(btn_help);
             Canvas.SetRight(btn_help, 0);
 
-            var myTextBlock = new TextBlock();
-            myTextBlock.Text = "TEST footer";
-            myTextBlock.Background = new SolidColorBrush(Color.FromArgb(128, 0, 221, 221));
-            myTextBlock.Width = 450;
-            myTextBlock.Height = 20;
+            // Create the TextBlock
+            TextBlock myTextBlock = new TextBlock();
+
+            // Set the row property of the TextBlock to 1
+            Grid.SetRow(myTextBlock, 1);
+
+            // Set the name and background of the TextBlock
+            myTextBlock.Name = "Footer";
+            myTextBlock.Background = new SolidColorBrush(Colors.PaleVioletRed);
+
+            // Create the first Label with a Hyperlink
+            Label label1 = new System.Windows.Controls.Label();
+            Hyperlink hyperlink = new Hyperlink();
+            hyperlink.NavigateUri = new Uri("http://medicalaffairs.varian.com/download/VarianLUSLA.pdf");
+            hyperlink.RequestNavigate += Hyperlink_RequestNavigate;
+            hyperlink.Inlines.Add("Bound by the terms of the Varian LUSLA");
+            label1.Content = hyperlink;
+            label1.Margin = new Thickness(0);
+
+            // Create the second Label with content bound to PostText
+            Label label2 = new System.Windows.Controls.Label();
+            label2.Content = new Binding("PostText");
+            label2.Margin = new Thickness(0);
+
+            // Add the Labels to the TextBlock
+            myTextBlock.Inlines.Add(label1);
+            myTextBlock.Inlines.Add(label2);
 
             main_grid.Children.Add(myTextBlock);
-
+            myTextBlock.VerticalAlignment = VerticalAlignment.Bottom;
+            myTextBlock.HorizontalAlignment = HorizontalAlignment.Stretch;
+           
+            //Grid.SetRow(myTextBlock, 9);
+            //Grid.SetRowSpan(myTextBlock, 2);
             /*
              <TextBlock Grid.Row="1" Name="Footer" Background="PaleVioletRed">    
                 <Label Margin="0"><Hyperlink NavigateUri="http://medicalaffairs.varian.com/download/VarianLUSLA.pdf" RequestNavigate="Hyperlink_RequestNavigate">
@@ -513,6 +543,14 @@ namespace VMS.TPS
              */
 
             this.Content = main_grid;
+        }
+
+        private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
+        {
+            // for .NET Core you need to add UseShellExecute = true
+            // see https://learn.microsoft.com/dotnet/api/system.diagnostics.processstartinfo.useshellexecute#property-value
+            Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri));
+            e.Handled = true;
         }
 
         private void Btn_help_Click(object sender, RoutedEventArgs e)
