@@ -16,7 +16,6 @@ using System.Collections;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows.Navigation;
-using System.Windows.Forms;
 //using System.Reflection.Emit;
 
 [assembly: AssemblyVersion("1.0.0.1")]
@@ -866,6 +865,8 @@ namespace VMS.TPS
 
     public class Script
     {
+        
+        //USER MODIFIABLE: After validating this change below to true to remove NOT VALIDATED text in UI
         bool IsValidated = false;
 
         public Script()
@@ -875,6 +876,24 @@ namespace VMS.TPS
         [MethodImpl(MethodImplOptions.NoInlining)]
         public void Execute(ScriptContext context, System.Windows.Window window, ScriptEnvironment environment)
         {
+
+
+            //USER MODIFIABLE: COMMENT OUT THE FOLLOWING TO REMOVE LICENSE POPUP
+            var msg = "You are bound by the terms of the Varian Limited Use Software License Agreement (LULSA).\nShow license agreement?";
+            string title = "Varian LULSA";
+            var buttons = System.Windows.MessageBoxButton.YesNo;
+            var result = MessageBox.Show(msg, title, buttons);
+            if (result == System.Windows.MessageBoxResult.Yes)
+            {
+                Process.Start("notepad.exe", "license.txt");
+            }else
+            {
+                // Nothing
+            }
+            // -----------------------------------------------------
+
+
+
             window.Activated += Window_Activated;
 
             if (context.Patient == null)
