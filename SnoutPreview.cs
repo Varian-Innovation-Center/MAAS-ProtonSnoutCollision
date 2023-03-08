@@ -16,13 +16,6 @@ using System.Collections;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows.Navigation;
-using System.Globalization;
-using System.Diagnostics;
-using System.Drawing;
-using System.Globalization;
-using System.Linq;
-using System.Windows.Forms;
-//using System.Reflection.Emit;
 
 [assembly: AssemblyVersion("1.0.0.1")]
 
@@ -516,22 +509,49 @@ namespace VMS.TPS
             myTextBlock.Background = new SolidColorBrush(Colors.PaleVioletRed);
 
             // Create the first Label with a Hyperlink
-            Label label1 = new System.Windows.Controls.Label();
+            var label1 = new Label();
             Hyperlink hyperlink = new Hyperlink();
             hyperlink.NavigateUri = new Uri("http://medicalaffairs.varian.com/download/VarianLUSLA.pdf");
             hyperlink.RequestNavigate += Hyperlink_RequestNavigate;
             hyperlink.Inlines.Add("Bound by the terms of the Varian LUSLA");
             label1.Content = hyperlink;
             label1.Margin = new Thickness(0);
-
             // Add the Labels to the TextBlock
             myTextBlock.Inlines.Add(label1);
 
-            main_grid.Children.Add(myTextBlock);
-            myTextBlock.VerticalAlignment = VerticalAlignment.Bottom;
-            myTextBlock.HorizontalAlignment = HorizontalAlignment.Stretch;
+
+            label2.Content = new Binding("PostText");
+            label2.Margin = new Thickness(0);
+
+            // Add the Labels to the TextBlock
+
+            AddBottomBanner(myTextBlock);
+           
+            //Grid.SetRow(myTextBlock, 9);
+            //Grid.SetRowSpan(myTextBlock, 2);
+            /*
+             <TextBlock Grid.Row="1" Name="Footer" Background="PaleVioletRed">    
+                <Label Margin="0"><Hyperlink NavigateUri="http://medicalaffairs.varian.com/download/VarianLUSLA.pdf" RequestNavigate="Hyperlink_RequestNavigate">
+                    Bound by the terms of the Varian LUSLA
+                </Hyperlink></Label>
+                <Label Margin="0" Content="{Binding PostText}"/>
+            </TextBlock>
+             */
+
+                    Bound by the terms of the Varian LUSLA
+                </Hyperlink></Label>
+                <Label Margin="0" Content="{Binding PostText}"/>
+            </TextBlock>
+             */
 
             this.Content = main_grid;
+        }
+
+        private void AddBottomBanner(TextBlock tb)
+        {
+            var label2 = new Label();
+            label2.Content = "* * * NOT VALIDATED FOR CLINICAL USE * * *";
+            tb.Inlines.Add(label2);
         }
 
         private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
@@ -958,16 +978,35 @@ namespace VMS.TPS
 
     public class Script
     {
+        
+        //USER MODIFIABLE: After validating this change below to true to remove NOT VALIDATED text in UI
         bool IsValidated = false;
 
         public Script()
+
+
+            //USER MODIFIABLE: COMMENT OUT THE FOLLOWING TO REMOVE LICENSE POPUP
+            var msg = "You are bound by the terms of the Varian Limited Use Software License Agreement (LULSA).\nShow license agreement?";
+            string title = "Varian LULSA";
+            var buttons = System.Windows.MessageBoxButton.YesNo;
+            var result = MessageBox.Show(msg, title, buttons);
+            if (result == System.Windows.MessageBoxResult.Yes)
+            {
+                Process.Start("notepad.exe", "license.txt");
+            }else
+            {
+                // Nothing
+            }
+            // -----------------------------------------------------
+
+
+
         {
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         public void Execute(ScriptContext context, System.Windows.Window window, ScriptEnvironment environment)
         {
-            ShowStartupMsg();
             window.Activated += Window_Activated;
 
             if (context.Patient == null)
@@ -992,13 +1031,10 @@ namespace VMS.TPS
 
             if (!IsValidated)
             {
-                window.Title += "* * * NOT VALIDATED FOR CLINICAL USE * * *";
+                window.Title += " * * * NOT VALIDATED FOR CLINICAL USE * * *";
             }
 
-            
-
-
-            
+           
 
             window.Height = 800;
 
