@@ -1,5 +1,7 @@
 # MAAS-ProtonSnoutCollision
 
+![image](https://user-images.githubusercontent.com/78000769/223833151-e04962c4-a286-4490-aa73-e86185d0b85b.png)
+
 Snout Preview (SnoutPreview.cs) is Eclipse script written to visualize and detect collisions between a snout of proton treatment machine and patient.
 
 Background: Eclipse limits collision detection to area that is defined as ‘Maximum Field Size’. This does not include the cover of the snout that is usually significantly larger than the ‘Maximum Field Size’. Therefore, it can happen that when a proton made is made and opened to treat a patient, the treatment is not possible due to a collision between snout and patient that went undetected at the Eclipse.
