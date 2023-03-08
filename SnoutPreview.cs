@@ -19,8 +19,9 @@ using System.Windows.Navigation;
 
 [assembly: AssemblyVersion("1.0.0.1")]
 
-// Caleb Notes:
-// Needs an IonBeam plan
+// USER NOTES:
+// The SnoutPosition property requires version 16 or greater of Eclipse
+// Comment out lines with this property to experiment with previous versions
 
 
 namespace VMS.TPS
