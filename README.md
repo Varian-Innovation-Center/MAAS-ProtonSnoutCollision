@@ -9,3 +9,5 @@ Solution/Mitigation: The script allows visualizing snout in its full size and sh
 The script allows rotating the 3D view with the snout and the patient, and the snout can be moved with a Slider control further away or closer to the patient to estimate optimal snout position for the plan. The snout position is displayed in the dialog and the number can be used with the treatment plan. The script also allows calculating an air gap (distance between BODY and face of the snout). The air gap is then visualized with a red line in 3D view which shows the area where the collision is most likely to happen.
 
 Snout Preview is a true script, just a cs file and can be easily modified and enhanced.
+
+Orginal code by Peter Klenovsky
