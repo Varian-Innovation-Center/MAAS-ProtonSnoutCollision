@@ -9,45 +9,315 @@ using VMS.TPS.Common.Model.API;
 using VMS.TPS.Common.Model.Types;
 using System.Windows.Controls;
 using System.Windows.Media.Media3D;
+using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Data;
 using System.Collections;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Windows.Navigation;
+using System.Windows.Forms;
+//using System.Reflection.Emit;
 
 [assembly: AssemblyVersion("1.0.0.1")]
 
+// Caleb Notes:
+// Needs an IonBeam plan
+
+
 namespace VMS.TPS
 {
+    //Snout
+    public class Snout
+    {
+
+        const double snout_pos_min = 0;
+        const double snout_pos_max = 421;
+        //snout cover sizes for 3D model
+        const double snout_face_zmin = -350;
+        const double snout_face_zmax = 350;
+        const double snout_face_xmin = -250;
+        const double snout_face_xmax = 250;
+        const double snout_end_zmin = -400;
+        const double snout_end_zmax = 400;
+        const double snout_end_xmin = -300;
+        const double snout_end_xmax = 300;
+        const double snout_depth = 100;
+
+        private double current_snout_distance;
+        private double planned_snout_distance;
+        private Vector3D planned_snout_position;
+        private double air_gap = Double.NaN;
+        private Point3D air_gap_start;
+        private Point3D air_gap_end;
+        private double gantry_angle;
+        private double couch_rotation;
+        private Vector3D isocenter;
+        private Model3DGroup snout_geometry;
+        private MeshGeometry3D snout_mesh;
+        private bool in_collision = false;
+        private bool air_gap_not_found = true;
+
+        public bool In_Collision
+        { 
+            get { return in_collision; }
+        }
+
+        public bool Air_Gap_Not_Found
+        {
+            get { return air_gap_not_found; }
+        }
+
+        public double Snout_Distance
+        {
+            get { return current_snout_distance; }
+        }
+
+        public Vector3D Planned_Snout_Position
+        {
+            get { return planned_snout_position; }
+        }
+
+        public Model3DGroup Geometry
+        { 
+            get { return snout_geometry; }
+        }
+
+        public double Air_Gap
+        { 
+            get { return air_gap; }
+        }
+
+        public Point3D Air_Gap_Start
+        { 
+            get { return air_gap_start;  }
+        }
+
+        public Point3D Air_Gap_End
+        {
+            get { return air_gap_end; }
+        }
+
+        public Snout(double snout_distance, double gantry_angle, double couch_rtn, Vector3D isocenter)
+        {
+            this.current_snout_distance = snout_distance;
+            this.planned_snout_distance = snout_distance;
+            this.gantry_angle = gantry_angle;
+            this.couch_rotation = couch_rtn;
+            this.isocenter = isocenter;
+            Create3DGeometry();
+        }
+
+        private void Create3DGeometry()
+        {
+            //snout face center with gantry at 0            
+            Vector3D snout_center_pos = new Vector3D(0, -planned_snout_distance, 0);
+
+            //Calculating corners of snout cover
+
+            //front/proximal face
+            Vector3D bottomleftfront = Vector3D.Add(snout_center_pos, new Vector3D(snout_face_xmin, 0, snout_face_zmin));
+            Vector3D bottomrightfront = Vector3D.Add(snout_center_pos, new Vector3D(snout_face_xmax, 0, snout_face_zmin));
+            Vector3D topleftfront = Vector3D.Add(snout_center_pos, new Vector3D(snout_face_xmin, 0, snout_face_zmax));
+            Vector3D toprightfront = Vector3D.Add(snout_center_pos, new Vector3D(snout_face_xmax, 0, snout_face_zmax));
+            //back/distal end, assuming conical shape, size increases distally
+            Vector3D bottomleftback = Vector3D.Add(snout_center_pos, new Vector3D(snout_end_xmin, -snout_depth, snout_end_zmin));
+            Vector3D bottomrightback = Vector3D.Add(snout_center_pos, new Vector3D(snout_end_xmax, -snout_depth, snout_end_zmin));
+            Vector3D topleftback = Vector3D.Add(snout_center_pos, new Vector3D(snout_end_xmin, -snout_depth, snout_end_zmax));
+            Vector3D toprightback = Vector3D.Add(snout_center_pos, new Vector3D(snout_end_xmax, -snout_depth, snout_end_zmax));
+
+            //gantry and couch rotation
+            Matrix3D matrix3D = Matrix3D.Identity;
+            Quaternion gantry_rot = new Quaternion(new Vector3D(0, 0, 1), gantry_angle);
+            matrix3D.Rotate(gantry_rot);
+            Quaternion couch_rot = new Quaternion(new Vector3D(0, 1 , 0), couch_rotation);
+            matrix3D.Rotate(couch_rot);
+
+            //Rotating snout (all its corners) by gantry angle
+            bottomleftfront = matrix3D.Transform(bottomleftfront);
+            bottomrightfront = matrix3D.Transform(bottomrightfront);
+            topleftfront = matrix3D.Transform(topleftfront);
+            toprightfront = matrix3D.Transform(toprightfront);
+            //back/distal end, assuming conical shape, size increases distally
+            bottomleftback = matrix3D.Transform(bottomleftback);
+            bottomrightback = matrix3D.Transform(bottomrightback);
+            topleftback = matrix3D.Transform(topleftback);
+            toprightback = matrix3D.Transform(toprightback);
+
+            planned_snout_position = matrix3D.Transform(snout_center_pos);
+
+            //Shifting by isocenter:
+            planned_snout_position = Vector3D.Add(planned_snout_position, isocenter);
+
+            bottomleftfront = Vector3D.Add(bottomleftfront, isocenter);
+            bottomrightfront = Vector3D.Add(bottomrightfront, isocenter);
+            topleftfront = Vector3D.Add(topleftfront, isocenter);
+            toprightfront = Vector3D.Add(toprightfront, isocenter);
+            bottomleftback = Vector3D.Add(bottomleftback, isocenter);
+            bottomrightback = Vector3D.Add(bottomrightback, isocenter);
+            topleftback = Vector3D.Add(topleftback, isocenter);
+            toprightback = Vector3D.Add(toprightback, isocenter);
+
+            //defining snout mesh for rotated snout
+            snout_geometry = new Model3DGroup();
+            GeometryModel3D snout_model = new GeometryModel3D();
+            snout_mesh = new MeshGeometry3D();
+            Point3D Identity = new Point3D(0, 0, 0); //to convert vectors to points for position definitions
+            snout_mesh.Positions = new Point3DCollection() { Point3D.Add(Identity, bottomleftfront), Point3D.Add(Identity, bottomrightfront), Point3D.Add(Identity, topleftfront), Point3D.Add(Identity, toprightfront),
+             Point3D.Add(Identity, bottomleftback), Point3D.Add(Identity, bottomrightback), Point3D.Add(Identity, topleftback), Point3D.Add(Identity, toprightback)};
+            //back traingles not includes, just a hollow cover
+            snout_mesh.TriangleIndices = new Int32Collection() { 0, 2, 1, 1, 2, 3, 0, 5, 4, 0, 1, 5, 1, 7, 5, 1, 3, 7, 3, 6, 7, 3, 2, 6, 2, 4, 6, 2, 0, 4 };
+            snout_model.Geometry = snout_mesh;
+            DiffuseMaterial snout_material = new DiffuseMaterial();
+            snout_material.Brush = new SolidColorBrush(Colors.LightGray);
+            snout_model.Material = snout_material;
+            //inner side of snout
+            DiffuseMaterial snout_back_material = new DiffuseMaterial();
+            snout_back_material.Brush = new SolidColorBrush(Colors.Red);
+            snout_model.BackMaterial = snout_back_material;
+            snout_geometry.Children.Add(snout_model);
+
+            //creating frame
+            Line3D front_bottom = new Line3D(Point3D.Add(Identity, bottomleftfront), Point3D.Add(Identity, bottomrightfront), Brushes.Black, 2);
+            snout_geometry.Children.Add(front_bottom.GeometryModel3D);
+            Line3D front_top = new Line3D(Point3D.Add(Identity, topleftfront), Point3D.Add(Identity, toprightfront), Brushes.Black, 2);
+            snout_geometry.Children.Add(front_top.GeometryModel3D);
+            Line3D front_right = new Line3D(Point3D.Add(Identity, bottomrightfront), Point3D.Add(Identity, toprightfront), Brushes.Black, 2);
+            snout_geometry.Children.Add(front_right.GeometryModel3D);
+            Line3D front_left = new Line3D(Point3D.Add(Identity, bottomleftfront), Point3D.Add(Identity, topleftfront), Brushes.Black, 2);
+            snout_geometry.Children.Add(front_left.GeometryModel3D);
+        }
+
+        public void MoveTo(double new_snout_distance)
+        {
+            this.current_snout_distance = new_snout_distance;
+
+            Vector3D snout_axis = Vector3D.Subtract(planned_snout_position, isocenter);
+
+            snout_geometry.Transform = new TranslateTransform3D(Vector3D.Multiply(new_snout_distance / planned_snout_distance - 1, snout_axis));
+        }
+
+        public double CalculateAirGap(Structure body, double resolution_x, double resolution_y)
+        {
+            in_collision = false;
+            air_gap_not_found = true;
+            int x_counter = 0;
+            air_gap = Double.MaxValue;
+            VVector closest_collision_point = new VVector(0, 0, 0);
+            VVector offset_at_snout = new VVector(0, 0, 0);
+
+            //corner points of snout at planned snout distance
+            Point3D snout_bottom_left = snout_mesh.Positions[0];
+            Point3D snout_bottom_right = snout_mesh.Positions[1];
+            Point3D snout_top_left = snout_mesh.Positions[2];
+
+            //shift vectors to move along snout face
+            Vector3D delta_x = Point3D.Subtract(snout_bottom_right, snout_bottom_left);
+            Vector3D delta_y = Point3D.Subtract(snout_top_left, snout_bottom_left);
+
+            //normalization to given resolution
+            delta_x = Vector3D.Multiply(Vector3D.Divide(delta_x, delta_x.Length), resolution_x);
+            delta_y = Vector3D.Multiply(Vector3D.Divide(delta_y, delta_y.Length), resolution_y);
+
+            //vector perpenducular to snout face, its direction is towards patient
+            Vector3D normal = Vector3D.CrossProduct(delta_y, delta_x);
+
+            //normalization of snout face normal:
+            Vector3D normal_unit = Vector3D.Divide(normal, normal.Length);
+            normal = Vector3D.Multiply(normal_unit, current_snout_distance);
+            Vector3D normal_planned = Vector3D.Multiply(normal_unit, planned_snout_distance);
+
+            //bottom left corner point at current snout distance
+            Point3D start_corner = Point3D.Add(snout_bottom_left,Vector3D.Subtract(normal_planned, normal));
+
+
+            while (snout_face_xmin + x_counter * resolution_x <= snout_face_xmax)
+            {
+                int y_counter = 0;
+                while (snout_face_zmin + y_counter * resolution_y <= snout_face_zmax)
+                {
+                    //start and end points for segment profile
+                    Vector3D shift = Vector3D.Add(Vector3D.Multiply(delta_x, x_counter), Vector3D.Multiply(delta_y, y_counter));
+                    Point3D start3D = Point3D.Add(start_corner, shift);
+                    Point3D end3D = Point3D.Add(start3D, normal);
+
+                    VVector start = new VVector(start3D.X, start3D.Y, start3D.Z);
+                    VVector end = new VVector(end3D.X, end3D.Y, end3D.Z);
+
+                    BitArray array = new BitArray(10 * (int)current_snout_distance);
+
+                    SegmentProfile profile = body.GetSegmentProfile(start, end, array);
+
+                    int collision_index = 0;
+                    Boolean found = false;
+                    foreach (SegmentProfilePoint p in profile)
+                    {
+                        if (p.Value == true)
+                        {
+                            found = true;
+                            break;
+                        }
+                        collision_index++;
+                    }
+
+                    if (found)
+                    {
+                        air_gap_not_found = false;
+                        
+                        if (collision_index == 0)
+                        {
+                            in_collision = true;
+                            break;
+                        }
+                        else
+                        {
+                            VVector collision_point = new VVector(profile[collision_index].Position.x, profile[collision_index].Position.y, profile[collision_index].Position.z);
+
+                            Double current_air_gap_value = (collision_point - start).Length;
+
+                            if (Math.Abs(current_air_gap_value) < Math.Abs(air_gap))
+                            {
+                                air_gap = current_air_gap_value;
+
+                                closest_collision_point = collision_point;
+                                offset_at_snout = start;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        //not found
+                    }
+                    y_counter++;
+                }
+                x_counter++;
+            }
+
+            air_gap_start = new Point3D(closest_collision_point.x, closest_collision_point.y, closest_collision_point.z);
+            air_gap_end = new Point3D(offset_at_snout.x, offset_at_snout.y, offset_at_snout.z);
+
+            return air_gap;
+        }
+    }
+
     //GUI class
     public class WNDContent : UserControl
     {
-        const double snout_pos_min = 40;
+        const double snout_pos_min = 0;
         const double snout_pos_max = 421;
-        //snout cover sizes for 3D model
-        const double snout_face_zmin = -200;
-        const double snout_face_zmax = 200;
-        const double snout_face_xmin = -200;
-        const double snout_face_xmax = 200;
-        const double snout_end_zmin = -250;
-        const double snout_end_zmax = 250;
-        const double snout_end_xmin = -250;
-        const double snout_end_xmax = 250;
-        const double snout_depth = 100;
 
         private Canvas canvas;
         private ComboBox field;
         private PerspectiveCamera camera;
         private Model3DGroup model3D;
-        private Label snout_position;
-        private Label view_angle;
+        private System.Windows.Controls.Label snout_position;
+        private System.Windows.Controls.Label view_angle;
         private TextBox txt_x;
         private TextBox txt_y;
         private Slider sl_snout_position;
-        private Label air_gap;
+        private System.Windows.Controls.Label air_gap;
         private Button btn_calculate;
-        private Vector3D plan_snout_position;
-        private Vector3D isocenter;
-        private Double plan_snout_distance;
-        private Double gantry_angle;
+        private Snout snout;
 
         public ScriptContext context { get; set; }
 
@@ -69,26 +339,26 @@ namespace VMS.TPS
 
             Grid top_left_grid = new Grid();
 
-            Label lbl_patient = new Label();
+            System.Windows.Controls.Label lbl_patient = new System.Windows.Controls.Label();
             lbl_patient.Content = "Patient:";
             top_left_grid.Children.Add(lbl_patient);
 
-            Label lbl_plan = new Label();
+            System.Windows.Controls.Label lbl_plan = new System.Windows.Controls.Label();
             lbl_plan.Content = "Plan:";
             lbl_plan.Margin = new Thickness(0, 15, 0, 0);
             top_left_grid.Children.Add(lbl_plan);
 
-            Label patient = new Label();
+            System.Windows.Controls.Label patient = new System.Windows.Controls.Label();
             patient.Name = "patient";
             patient.Margin = new Thickness(50, 0, 0, 0);
             top_left_grid.Children.Add(patient);
 
-            Label plan = new Label();
+            System.Windows.Controls.Label plan = new System.Windows.Controls.Label();
             plan.Name = "plan";
             plan.Margin = new Thickness(50, 15, 0, 0);
             top_left_grid.Children.Add(plan);
 
-            Label lbl_field = new Label();
+            System.Windows.Controls.Label lbl_field = new System.Windows.Controls.Label();
             lbl_field.Content = "Select field:";
             lbl_field.Margin = new Thickness(0, 40, 0, 0);
             top_left_grid.Children.Add(lbl_field);
@@ -117,17 +387,17 @@ namespace VMS.TPS
 
             Grid top_right_grid = new Grid();
 
-            Label lbl_airgap = new Label();
+            System.Windows.Controls.Label lbl_airgap = new System.Windows.Controls.Label();
             lbl_airgap.Content = "Measure air gap at resolution:";
             lbl_airgap.Margin = new Thickness(0, 15, 0, 0);
             top_right_grid.Children.Add(lbl_airgap);
 
-            Label lbl_x = new Label();
+            System.Windows.Controls.Label lbl_x = new System.Windows.Controls.Label();
             lbl_x.Content = "x[mm]:";
             lbl_x.Margin = new Thickness(165, 0, 0, 0);
             top_right_grid.Children.Add(lbl_x);
 
-            Label lbl_y = new Label();
+            System.Windows.Controls.Label lbl_y = new System.Windows.Controls.Label();
             lbl_y.Content = "y[mm]:";
             lbl_y.Margin = new Thickness(210, 0, 0, 0);
             top_right_grid.Children.Add(lbl_y);
@@ -164,7 +434,7 @@ namespace VMS.TPS
             txt_y.Text = "10";
             top_right_grid.Children.Add(txt_y);
 
-            air_gap = new Label();
+            air_gap = new System.Windows.Controls.Label();
             air_gap.Content = "Calculated air gap =";
             air_gap.Margin = new Thickness(100, 40, 0, 0);
             top_right_grid.Children.Add(air_gap);
@@ -172,12 +442,12 @@ namespace VMS.TPS
             top_right.Child = top_right_grid;
 
             //Canvas controls
-            Label lbl_view_angle = new Label();
+            System.Windows.Controls.Label lbl_view_angle = new System.Windows.Controls.Label();
             lbl_view_angle.Content = "View angle[deg]: ";
             lbl_view_angle.Margin = new Thickness(5, 80, 0, 0);
             main_grid.Children.Add(lbl_view_angle);
 
-            view_angle = new Label();
+            view_angle = new System.Windows.Controls.Label();
             view_angle.Margin = new Thickness(95, 80, 0, 0);
             view_angle.Content = 0;
             main_grid.Children.Add(view_angle);
@@ -192,12 +462,12 @@ namespace VMS.TPS
             sl_view_angle.ValueChanged += sl_view_angle_ValueChanged;
             main_grid.Children.Add(sl_view_angle);
 
-            Label lbl_snout_position = new Label();
+            System.Windows.Controls.Label lbl_snout_position = new System.Windows.Controls.Label();
             lbl_snout_position.Content = "Snout position[cm]: ";
             lbl_snout_position.Margin = new Thickness(5, 100, 0, 0);
             main_grid.Children.Add(lbl_snout_position);
 
-            snout_position = new Label();
+            snout_position = new System.Windows.Controls.Label();
             snout_position.Name = "snout_position_value";
             snout_position.Margin = new Thickness(110, 100, 0, 0);
             main_grid.Children.Add(snout_position);
@@ -218,6 +488,8 @@ namespace VMS.TPS
             canvas.Background = Brushes.LightSkyBlue;
             canvas.MouseWheel += Canvas_MouseWheel;
             main_grid.Children.Add(canvas);
+            
+            
 
             Button btn_help = new Button();
             btn_help.Width = 20;
@@ -228,15 +500,59 @@ namespace VMS.TPS
             canvas.Children.Add(btn_help);
             Canvas.SetRight(btn_help, 0);
 
+            // Create the TextBlock
+            TextBlock myTextBlock = new TextBlock();
+
+            // Set the row property of the TextBlock to 1
+            Grid.SetRow(myTextBlock, 1);
+
+            // Set the name and background of the TextBlock
+            myTextBlock.Name = "Footer";
+            myTextBlock.Background = new SolidColorBrush(Colors.PaleVioletRed);
+
+            // Create the first Label with a Hyperlink
+            Label label1 = new System.Windows.Controls.Label();
+            Hyperlink hyperlink = new Hyperlink();
+            hyperlink.NavigateUri = new Uri("http://medicalaffairs.varian.com/download/VarianLUSLA.pdf");
+            hyperlink.RequestNavigate += Hyperlink_RequestNavigate;
+            hyperlink.Inlines.Add("Bound by the terms of the Varian LUSLA");
+            label1.Content = hyperlink;
+            label1.Margin = new Thickness(0);
+            // Add the Labels to the TextBlock
+            myTextBlock.Inlines.Add(label1);
+
+            main_grid.Children.Add(myTextBlock);
+            myTextBlock.VerticalAlignment = VerticalAlignment.Bottom;
+            myTextBlock.HorizontalAlignment = HorizontalAlignment.Stretch;
+           
+            //Grid.SetRow(myTextBlock, 9);
+            //Grid.SetRowSpan(myTextBlock, 2);
+            /*
+             <TextBlock Grid.Row="1" Name="Footer" Background="PaleVioletRed">    
+                <Label Margin="0"><Hyperlink NavigateUri="http://medicalaffairs.varian.com/download/VarianLUSLA.pdf" RequestNavigate="Hyperlink_RequestNavigate">
+                    Bound by the terms of the Varian LUSLA
+                </Hyperlink></Label>
+                <Label Margin="0" Content="{Binding PostText}"/>
+            </TextBlock>
+             */
+
             this.Content = main_grid;
+        }
+
+        private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
+        {
+            // for .NET Core you need to add UseShellExecute = true
+            // see https://learn.microsoft.com/dotnet/api/system.diagnostics.processstartinfo.useshellexecute#property-value
+            Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri));
+            e.Handled = true;
         }
 
         private void Btn_help_Click(object sender, RoutedEventArgs e)
         {
             MessageBox.Show("This script visualizes a snout for proton machine. \r\n\r\n" +
                 "It allows moving the snout and calculating air gap.\r\n\r\n" + 
-                "Air gap is calcuated using ray tracing from the snout down to the body. Raytracing can be done at a custom resolution.\r\n\r\n"+
-                "Note: small value may require a few seconds to calculate depending on snout size; couch rotation is ignored and visualization will be incorrect in the current implementation");
+                "Air gap is calculated using ray tracing from the snout down to the body. Raytracing can be done at a custom resolution.\r\n\r\n"+
+                "Note: small value may require a few seconds to calculate depending on snout size");
         }
 
         private void txt_TextChanged(object sender, TextChangedEventArgs e)
@@ -283,94 +599,33 @@ namespace VMS.TPS
             Double resolution_x = Convert.ToDouble(txt_x.Text);
             Double resolution_y = Convert.ToDouble(txt_y.Text);
 
-            int x_counter = 0;
-            Double air_gap_value = Double.MaxValue;
-            VVector closest_collision_point = new VVector(0,0,0);
-            VVector offset_at_snout = new VVector(0, 0, 0);
-            Boolean in_collision = false;
-            while (snout_face_xmin + x_counter * resolution_x <= snout_face_xmax)
+            double air_gap_value = snout.CalculateAirGap(body, resolution_x, resolution_y);
+
+            //Erase previously calculated airgap:
+            if (model3D.Children.Count == 6) //includes calculated gap which is the last child
             {
-                int y_counter = 0;
-                while (snout_face_zmin + y_counter * resolution_y <= snout_face_zmax)
-                {
-                    Vector3D shift = new Vector3D(snout_face_xmin + x_counter * resolution_x, 0, snout_face_zmin + y_counter * resolution_y);
-
-                    Double current_snout_position = sl_snout_position.Value;
-                    Vector3D iso_shifted = Vector3D.Add(isocenter, shift);
-                    Vector3D snout_center_shifted = Vector3D.Add(new Vector3D(0, -current_snout_position, 0), shift);
-
-                    //gantry rotation matrix
-                    Matrix3D matrix3D = Matrix3D.Identity;
-                    Quaternion rot = new Quaternion(new Vector3D(0, 0, 1), gantry_angle);
-                    matrix3D.Rotate(rot);
-
-                    //apply gantry angle
-                    iso_shifted = matrix3D.Transform(iso_shifted);
-                    snout_center_shifted = matrix3D.Transform(snout_center_shifted);
-
-                    snout_center_shifted = Vector3D.Add(snout_center_shifted, isocenter);
-
-                    VVector end = new VVector(iso_shifted.X, iso_shifted.Y, iso_shifted.Z);
-                    VVector start = new VVector(snout_center_shifted.X, snout_center_shifted.Y, snout_center_shifted.Z);
-
-                    BitArray array = new BitArray(10 * (int)current_snout_position);
-
-                    SegmentProfile profile = body.GetSegmentProfile(start, end, array);
-
-                    int collision_index = 0;
-                    Boolean found = false;
-                    foreach (SegmentProfilePoint p in profile)
-                    {
-                        if (p.Value == true)
-                        {
-                            found = true;
-                            break;
-                        }
-                        collision_index++;
-                    }
-
-                    if (found)
-                    {
-                        if (collision_index == 0)
-                        {
-                            in_collision = true;
-                        }
-                        else
-                        {
-                            VVector collision_point = new VVector(profile[collision_index].Position.x, profile[collision_index].Position.y, profile[collision_index].Position.z);
-
-                            Double current_air_gap_value = (collision_point - start).Length;
-
-                            if (current_air_gap_value < air_gap_value)
-                            {
-                                air_gap_value = current_air_gap_value;
-
-                                closest_collision_point = collision_point;
-                                offset_at_snout = start;
-                            }
-                        }
-
-                    }
-                    else
-                    {
-                        //not found
-                    }
-                    y_counter++;
-                }
-                x_counter++;
+                model3D.Children.RemoveAt(5);
+                air_gap.Content = "Calculated air gap = ";
             }
 
-            if (in_collision)
+            if (snout.Air_Gap_Not_Found)
             {
-                air_gap.Content = "Calculated air gap = IN COLLISION";
+                //in collision
+                air_gap.Content = "Calculated air gap = NOT FOUND";
             }
             else
             {
-                Line3D line = new Line3D(new Point3D(closest_collision_point.x, closest_collision_point.y, closest_collision_point.z),
-                    new Point3D(offset_at_snout.x, offset_at_snout.y, offset_at_snout.z), Brushes.Red, 3);
-                model3D.Children.Add(line.GeometryModel3D);
+                if (!snout.In_Collision)
+                {
+                    Line3D line = new Line3D(snout.Air_Gap_Start, snout.Air_Gap_End, Brushes.Red, 3);
+                    model3D.Children.Add(line.GeometryModel3D);
 
-                air_gap.Content = "Calculated air gap = " + air_gap_value.ToString("###.0") + " mm";
+                    air_gap.Content = "Calculated air gap = " + air_gap_value.ToString("###.0") + " mm";
+                }
+                else
+                {
+                    air_gap.Content = "Calculated air gap = IN COLLISION";
+                }
             }
  
         }
@@ -381,6 +636,9 @@ namespace VMS.TPS
             {
                 Initiate3DView();
             }
+            //update controls
+            air_gap.Content = "Calculated air gap = ";
+            sl_snout_position.Value = (context.IonPlanSetup.Beams.ElementAt(field.SelectedIndex) as IonBeam).SnoutPosition * 10; //converting to mm
         }
 
         private void txt_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
@@ -440,12 +698,7 @@ namespace VMS.TPS
 
                 snout_position.Content = (e.NewValue / 10).ToString("##.0");
 
-                //getting reference to snout mesh, snout model is the second child of the model3D
-                Model3DGroup snout_model = model3D.Children[2] as Model3DGroup;
-
-                Vector3D snout_axis = Vector3D.Subtract(plan_snout_position, isocenter);
-
-                snout_model.Transform = new TranslateTransform3D(Vector3D.Multiply(e.NewValue / plan_snout_distance - 1, snout_axis));
+                snout.MoveTo(e.NewValue);
             }
         }
 
@@ -469,7 +722,7 @@ namespace VMS.TPS
             Canvas.SetTop(viewport, 0);
             if (canvas.Children.Count == 2)
             {
-            //When creating 3D view canvas has only 1 child. After that it will have 2, second one  being the 3 view
+            //When creating 3D view canvas has only 1 child. After that it will have 2, second one  being the 3D view
             canvas.Children.RemoveAt(1);
             }
             canvas.Children.Add(viewport);
@@ -485,6 +738,9 @@ namespace VMS.TPS
             //assigning model visual to view port 3D of the canvas on the main window
             viewport.Children.Add(modelvisual);
 
+            VVector v_isocenter = fields.ElementAt(field.SelectedIndex).IsocenterPosition;
+            Vector3D isocenter = new Vector3D(v_isocenter.x, v_isocenter.y, v_isocenter.z);
+
             //adding patient body 3D in the model
             GeometryModel3D patientmodel = new GeometryModel3D();
             patientmodel.Geometry = body.MeshGeometry;
@@ -496,91 +752,28 @@ namespace VMS.TPS
             //creating snout mesh at well know geometry when gantry at 0  --------------------------------------------
 
             //read required information from the plan, for a field selected in drop down
-            gantry_angle = fields.ElementAt(field.SelectedIndex).ControlPoints[0].GantryAngle;
-            VVector v_isocenter = fields.ElementAt(field.SelectedIndex).IsocenterPosition;
-            plan_snout_distance = (fields.ElementAt(field.SelectedIndex) as IonBeam).SnoutPosition * 10; //converting to mm
+            double gantry_angle = fields.ElementAt(field.SelectedIndex).ControlPoints[0].GantryAngle;
+            double plan_snout_distance = (fields.ElementAt(field.SelectedIndex) as IonBeam).SnoutPosition * 10; //converting to mm
+            double couch_rtn = fields.ElementAt(field.SelectedIndex).ControlPoints[0].PatientSupportAngle;
 
-            isocenter = new Vector3D(v_isocenter.x, v_isocenter.y, v_isocenter.z);
+            //apply couch rotation:
 
-            //snout face center with gantry at 0            
-            Vector3D snout_center_pos = new Vector3D(0, -plan_snout_distance, 0);
+            //To apply couch rotation, we can rotate the BODY or the Snout geometry
+            //For visualization, rotating BODY is probably most straightforward. It can be done by applying Transform3D to BODY Model3D
+            //However, Transform3D does not rotate points of the Mesh3D, it only changes coordinate system for the Model3D
+            //The BODY is also used for air gap calculation and for this calculation the Mesh 3D of the Snout and BODY geometries must be in the 
+            //same coordinate system i.e. we would need to rotate all points of BODY Mesh3D. This is doable but a new Mesh3D must be created and there is no
+            //way to make this Mesh3D part of Structure which is needed to call GetSegmentProfile for air gap calculation.
+            //
+            //Therefore, to apply couch rotation, the Snout geometry will be rotated, not BODY. The 3D view coordinate system is then connected with the couch.
 
-            //Calculating corners of snout cover
+            snout = new Snout(plan_snout_distance, gantry_angle, couch_rtn, isocenter);
+            model3D.Children.Add(snout.Geometry);
 
-            //front/proximal face
-            Vector3D bottomleftfront = Vector3D.Add(snout_center_pos, new Vector3D(snout_face_xmin, 0, snout_face_zmin)); //assuming front face is square +/- 20cm around center
-            Vector3D bottomrightfront = Vector3D.Add(snout_center_pos, new Vector3D(snout_face_xmax, 0, snout_face_zmin));
-            Vector3D topleftfront = Vector3D.Add(snout_center_pos, new Vector3D(snout_face_xmin, 0, snout_face_zmax));
-            Vector3D toprightfront = Vector3D.Add(snout_center_pos, new Vector3D(snout_face_xmax, 0, snout_face_zmax));
-            //back/distal end, assuming conical shape, size increases distally
-            Vector3D bottomleftback = Vector3D.Add(snout_center_pos, new Vector3D(snout_end_xmin, -snout_depth, snout_end_zmin)); //assuming back side is square +/- 25cm around center, thickness 10cm
-            Vector3D bottomrightback = Vector3D.Add(snout_center_pos, new Vector3D(snout_end_xmax, -snout_depth, snout_end_zmin));
-            Vector3D topleftback = Vector3D.Add(snout_center_pos, new Vector3D(snout_end_xmin, -snout_depth, snout_end_zmax));
-            Vector3D toprightback = Vector3D.Add(snout_center_pos, new Vector3D(snout_end_xmax, -snout_depth, snout_end_zmax));
-
-            //gantry rotation matrix
-            Matrix3D matrix3D = Matrix3D.Identity;
-            Quaternion rot = new Quaternion(new Vector3D(0, 0, 1), gantry_angle);
-            matrix3D.Rotate(rot);
-
-            //Rotating snout (all its corners) by gantry angle
-            bottomleftfront = matrix3D.Transform(bottomleftfront);
-            bottomrightfront = matrix3D.Transform(bottomrightfront);
-            topleftfront = matrix3D.Transform(topleftfront);
-            toprightfront = matrix3D.Transform(toprightfront);
-            //back/distal end, assuming conical shape, size increases distally
-            bottomleftback = matrix3D.Transform(bottomleftback);
-            bottomrightback = matrix3D.Transform(bottomrightback);
-            topleftback = matrix3D.Transform(topleftback);
-            toprightback = matrix3D.Transform(toprightback);
-
-            plan_snout_position = matrix3D.Transform(snout_center_pos);
-
-            //Shifting by isocenter:
-            plan_snout_position = Vector3D.Add(plan_snout_position, isocenter);
-
-            bottomleftfront = Vector3D.Add(bottomleftfront, isocenter);
-            bottomrightfront = Vector3D.Add(bottomrightfront, isocenter);
-            topleftfront = Vector3D.Add(topleftfront, isocenter);
-            toprightfront = Vector3D.Add(toprightfront, isocenter);
-            bottomleftback = Vector3D.Add(bottomleftback, isocenter);
-            bottomrightback = Vector3D.Add(bottomrightback, isocenter);
-            topleftback = Vector3D.Add(topleftback, isocenter);
-            toprightback = Vector3D.Add(toprightback, isocenter);
-
-            //defining snout mesh for rotated snout
-            Model3DGroup snout = new Model3DGroup();
-            GeometryModel3D snout_model = new GeometryModel3D();
-            MeshGeometry3D snout_mesh = new MeshGeometry3D();
-            Point3D Identity = new Point3D(0, 0, 0); //to convert vectors to points for position definitions
-            snout_mesh.Positions = new Point3DCollection() { Point3D.Add(Identity, bottomleftfront), Point3D.Add(Identity, bottomrightfront), Point3D.Add(Identity, topleftfront), Point3D.Add(Identity, toprightfront),
-             Point3D.Add(Identity, bottomleftback), Point3D.Add(Identity, bottomrightback), Point3D.Add(Identity, topleftback), Point3D.Add(Identity, toprightback)};
-            //back traingles not includes, just a hollow cover
-            snout_mesh.TriangleIndices = new Int32Collection() { 0, 2, 1, 1, 2, 3, 0, 5, 4, 0, 1, 5, 1, 7, 5, 1, 3, 7, 3, 6, 7, 3, 2, 6, 2, 4, 6, 2, 0, 4 };
-            snout_model.Geometry = snout_mesh;
-            DiffuseMaterial snout_material = new DiffuseMaterial();
-            snout_material.Brush = new SolidColorBrush(Colors.LightGray);
-            snout_model.Material = snout_material;
-            //inner side of snout
-            DiffuseMaterial snout_back_material = new DiffuseMaterial();
-            snout_back_material.Brush = new SolidColorBrush(Colors.Red);
-            snout_model.BackMaterial = snout_back_material;
-            snout.Children.Add(snout_model);
-
-            //creating frame
-            Line3D front_bottom = new Line3D(Point3D.Add(Identity, bottomleftfront), Point3D.Add(Identity, bottomrightfront), Brushes.Black, 2);
-            snout.Children.Add(front_bottom.GeometryModel3D);
-            Line3D front_top = new Line3D(Point3D.Add(Identity, topleftfront), Point3D.Add(Identity, toprightfront), Brushes.Black, 2);
-            snout.Children.Add(front_top.GeometryModel3D);
-            Line3D front_right = new Line3D(Point3D.Add(Identity, bottomrightfront), Point3D.Add(Identity, toprightfront), Brushes.Black, 2);
-            snout.Children.Add(front_right.GeometryModel3D);
-            Line3D front_left = new Line3D(Point3D.Add(Identity, bottomleftfront), Point3D.Add(Identity, topleftfront), Brushes.Black, 2);
-            snout.Children.Add(front_left.GeometryModel3D);
-            Vector3D snout_parked = Vector3D.Multiply(Vector3D.Divide(Vector3D.Subtract(plan_snout_position, isocenter), plan_snout_distance), snout_pos_max);
-            Line3D CAX = new Line3D(Point3D.Add(Identity, Vector3D.Add(snout_parked,isocenter)), new Point3D(isocenter.X, isocenter.Y, isocenter.Z), Brushes.YellowGreen, 1);
+            //CAX display
+            Vector3D snout_parked = Vector3D.Multiply(Vector3D.Divide(Vector3D.Subtract(snout.Planned_Snout_Position,isocenter),snout.Snout_Distance),snout_pos_max);
+            Line3D CAX = new Line3D(Point3D.Add(new Point3D(0, 0, 0), Vector3D.Add(snout_parked,isocenter)), new Point3D(isocenter.X, isocenter.Y, isocenter.Z), Brushes.YellowGreen, 1);
             model3D.Children.Add(CAX.GeometryModel3D);
-
-            model3D.Children.Add(snout);
 
             //adding lights 
             DirectionalLight light1 = new DirectionalLight(Colors.WhiteSmoke, new Vector3D(0, 600, 0));
@@ -635,17 +828,17 @@ namespace VMS.TPS
 
             Vector3D line = Point3D.Subtract(end, start);
 
-            if ((Math.Abs(line.X) > Math.Abs(line.Y)) && (Math.Abs(line.X) > Math.Abs(line.Z)))
+            if ((Math.Abs(line.X) >= Math.Abs(line.Y)) && (Math.Abs(line.X) >= Math.Abs(line.Z)))
             {
                 norm_to_line1 = new Vector3D( -(line.Y + line.Z)/line.X , 1, 1);
             }
 
-            if ((Math.Abs(line.Y) > Math.Abs(line.X)) && (Math.Abs(line.Y) > Math.Abs(line.Z)))
+            if ((Math.Abs(line.Y) >= Math.Abs(line.X)) && (Math.Abs(line.Y) >= Math.Abs(line.Z)))
             {
                 norm_to_line1 = new Vector3D(1,-(line.X + line.Z) / line.Y, 1);
             }
 
-            if ((Math.Abs(line.Z) > Math.Abs(line.X)) && (Math.Abs(line.Z) > Math.Abs(line.Y)))
+            if ((Math.Abs(line.Z) >= Math.Abs(line.X)) && (Math.Abs(line.Z) >= Math.Abs(line.Y)))
             {
                 norm_to_line1 = new Vector3D(1, 1, -(line.X + line.Y) / line.Z);
             }
@@ -667,13 +860,14 @@ namespace VMS.TPS
             GenerateVertices(line_mesh.Positions);
             line_mesh.TriangleIndices = new Int32Collection() {0,1,2  ,2,1,3  ,5,7,4  ,7,6,4  ,1,4,6  ,6,3,1  ,5,2,7  ,0,2,5  ,7,2,3  ,7,3,6  ,4,0,5  ,4,1,0};
             geoModel3D.Geometry = line_mesh;
-
         }
          
     }
 
     public class Script
     {
+        bool IsValidated = false;
+
         public Script()
         {
         }
@@ -701,6 +895,18 @@ namespace VMS.TPS
             window.MinWidth = 630;
             window.MinHeight = 800;
             window.Width = 630;
+            window.Title = "MAAS-ProtonSnoutCollision";
+
+            if (!IsValidated)
+            {
+                window.Title += "* * * NOT VALIDATED FOR CLINICAL USE * * *";
+            }
+
+            
+
+
+            
+
             window.Height = 800;
 
             //Initialize GUI
