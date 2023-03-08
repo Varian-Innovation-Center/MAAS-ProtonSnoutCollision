@@ -16,7 +16,6 @@ using System.Collections;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows.Navigation;
-//using System.Reflection.Emit;
 
 [assembly: AssemblyVersion("1.0.0.1")]
 
@@ -510,7 +509,7 @@ namespace VMS.TPS
             myTextBlock.Background = new SolidColorBrush(Colors.PaleVioletRed);
 
             // Create the first Label with a Hyperlink
-            Label label1 = new System.Windows.Controls.Label();
+            var label1 = new Label();
             Hyperlink hyperlink = new Hyperlink();
             hyperlink.NavigateUri = new Uri("http://medicalaffairs.varian.com/download/VarianLUSLA.pdf");
             hyperlink.RequestNavigate += Hyperlink_RequestNavigate;
@@ -520,9 +519,13 @@ namespace VMS.TPS
             // Add the Labels to the TextBlock
             myTextBlock.Inlines.Add(label1);
 
+
+
             main_grid.Children.Add(myTextBlock);
             myTextBlock.VerticalAlignment = VerticalAlignment.Bottom;
             myTextBlock.HorizontalAlignment = HorizontalAlignment.Stretch;
+
+            AddBottomBanner(myTextBlock);
            
             //Grid.SetRow(myTextBlock, 9);
             //Grid.SetRowSpan(myTextBlock, 2);
@@ -536,6 +539,13 @@ namespace VMS.TPS
              */
 
             this.Content = main_grid;
+        }
+
+        private void AddBottomBanner(TextBlock tb)
+        {
+            var label2 = new Label();
+            label2.Content = "* * * NOT VALIDATED FOR CLINICAL USE * * *";
+            tb.Inlines.Add(label2);
         }
 
         private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
@@ -918,13 +928,10 @@ namespace VMS.TPS
 
             if (!IsValidated)
             {
-                window.Title += "* * * NOT VALIDATED FOR CLINICAL USE * * *";
+                window.Title += " * * * NOT VALIDATED FOR CLINICAL USE * * *";
             }
 
-            
-
-
-            
+           
 
             window.Height = 800;
 
