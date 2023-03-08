@@ -517,15 +517,8 @@ namespace VMS.TPS
             hyperlink.Inlines.Add("Bound by the terms of the Varian LUSLA");
             label1.Content = hyperlink;
             label1.Margin = new Thickness(0);
-
-            // Create the second Label with content bound to PostText
-            Label label2 = new System.Windows.Controls.Label();
-            label2.Content = new Binding("PostText");
-            label2.Margin = new Thickness(0);
-
             // Add the Labels to the TextBlock
             myTextBlock.Inlines.Add(label1);
-            myTextBlock.Inlines.Add(label2);
 
             main_grid.Children.Add(myTextBlock);
             myTextBlock.VerticalAlignment = VerticalAlignment.Bottom;
