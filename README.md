@@ -12,6 +12,8 @@ The script allows rotating the 3D view with the snout and the patient, and the s
 
 Snout Preview is a true script, just a non-compiled cs file and can be easily modified and enhanced.
 
+To use: simply copy the SnoutPreview.cs file (and this readme.md and license.txt) to your Eclipse scripts directory and run it.
+
 Note: Eclipse version 16 required
 https://github.com/Varian-Innovation-Center/MAAS-ProtonSnoutCollision/blob/52d9df2878d536bf3cbb50f93d7a1b52fb06f81b/SnoutPreview.cs#L23
 
