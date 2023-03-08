@@ -12,4 +12,7 @@ The script allows rotating the 3D view with the snout and the patient, and the s
 
 Snout Preview is a true script, just a cs file and can be easily modified and enhanced.
 
+Tip: look for USER MODIFIABLE sections of the code to turn on/off "not yet validated" warning or licence agreement popup
+https://github.com/Varian-Innovation-Center/MAAS-ProtonSnoutCollision/blob/4a4f6194984976cc76f2afdc5d08b49120bc3915/SnoutPreview.cs#L881
+
 Orginal code by Peter Klenovsky
